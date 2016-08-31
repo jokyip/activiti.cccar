@@ -35,7 +35,7 @@ def slurper = new groovy.json.JsonSlurper();
 def tokenresult = slurper.parseText(token.text);
 println tokenresult;
 
-def cccar = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" ${cccarAPI}"].execute();
+def cccar = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"createdBy=${task.getVariable('createdBy')}\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println cccarresult;
 cccar.waitFor();
