@@ -27,7 +27,7 @@
         <activiti:taskListener event="create" class="org.activiti.engine.impl.bpmn.listener.ScriptTaskListener">
           <activiti:field name="script">
             <activiti:string><![CDATA[def cccarServer = 'http://10.30.224.82:8030';
-def orgchartAPI = "http://10.30.224.82:8020/api/user?email=";
+def orgchartAPI = "http://10.30.224.82:8021/api/user?email=";
 def todoAPI = 'http://10.30.224.82:8010/api/todo/';
 def cccarAPI = "${cccarServer}/api/record/";
 task.setVariable('cccarServer',cccarServer);
@@ -39,17 +39,23 @@ def slurper = new groovy.json.JsonSlurper();
 def tokenresult = slurper.parseText(token.text);
 println "CCCAR - Issue. Task created. Token: ${tokenresult.access_token}";
 
-def cccar = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"createdBy=${task.getVariable('createdBy')}\" ${cccarAPI}"].execute();
+def cccar = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"createdBy=${task.getVariable('createdBy')}&number=${task.getProcessInstanceId()}&nextAction=Issue\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
-println "CCCAR - Issue. Task created. CCCAR update result: ${cccarresult}";
+println "CCCAR - Issue. Task created. CCCAR create result: ${cccarresult}";
 cccar.waitFor();
 def url = "${cccarServer}/#/cccar/edit/${cccarresult.id}";
 task.setVariable('cccarId',cccarresult.id);
 
-def todo = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"task=${task.name}&ownedBy=${task.getVariable('createdBy')}&url=${url}&taskId=${task.id}&procInsId=${task.getProcessInstanceId()}&procCreateDate=${task.getVariable('createdAt').format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'')}&dateStart=${task.getCreateTime().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'')}&type=activiti\" ${todoAPI}"].execute();
+def todo = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"task=${task.name}&ownedBy=${task.getVariable('createdBy')}&url=${url}&taskId=${task.id}&procInsId=${task.getProcessInstanceId()}&procCreateDate=${task.getVariable('createdAt').format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}&dateStart=${task.getCreateTime().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}&type=activiti\" ${todoAPI}"].execute();
 def todoresult = slurper.parseText(todo.text);
 println "CCCAR - Issue. Task created. Todo create result: ${todoresult}";
-todo.waitFor();]]></activiti:string>
+todo.waitFor();
+
+cccarAPI = "${cccarAPI}${cccarresult.id}"
+cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"todoId=${todoresult.id}&taskId=${task.id}\" ${cccarAPI}"].execute();
+cccarresult = slurper.parseText(cccar.text);
+println "CCCAR - Issue. Task created. CCCAR update result: ${cccarresult}";
+cccar.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -66,14 +72,15 @@ def slurper = new groovy.json.JsonSlurper();
 def me = slurper.parseText(myInfo.text);
 println "CCCAR - Issue. Task completed. My details: ${me}";
 myInfo.waitFor();
-task.setVariable('ro',me.results[0].supervisor.username);
-task.setVariable('nextHandler',me.results[0].supervisor.username);
+def nextHandler = me.results[0].supervisor.username
+task.setVariable('ro',nextHandler);
+task.setVariable('nextHandler',nextHandler);
 
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
 def tokenresult = slurper.parseText(token.text);
 println "CCCAR - Issue. Task completed. Token: ${tokenresult.access_token}";
 
-def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"issuedBy=${completedBy.username}&status=Submitted\" ${cccarAPI}"].execute();
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${nextHandler}&nextAction=Endorse&status=Pending Endorsement\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Issue. Task completed. CCCAR update result: ${cccarresult}";
 cccar.waitFor();]]></activiti:string>
@@ -90,6 +97,7 @@ cccar.waitFor();]]></activiti:string>
           <activiti:field name="script">
             <activiti:string><![CDATA[def todoAPI = task.getVariable('todoAPI');
 def cccarServer = task.getVariable('cccarServer');
+def cccarAPI = "${cccarServer}/api/record/${task.getVariable('cccarId')}";
 def url = "${cccarServer}/#/cccar/${task.getVariable('cccarId')}";
 			
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
@@ -97,10 +105,15 @@ def slurper = new groovy.json.JsonSlurper();
 def tokenresult = slurper.parseText(token.text);
 println "CCCAR - Endorse. Task created. Token: ${tokenresult.access_token}";
 
-def todo = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"task=${task.name}&ownedBy=${task.getVariable('ro')}&url=${url}&taskId=${task.id}&procInsId=${task.getProcessInstanceId()}&procCreateDate=${task.getVariable('createdAt').format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'')}&dateStart=${task.getCreateTime().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'')}&type=activiti\" ${todoAPI}"].execute();
+def todo = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"task=${task.name}&ownedBy=${task.getVariable('ro')}&url=${url}&taskId=${task.id}&procInsId=${task.getProcessInstanceId()}&procCreateDate=${task.getVariable('createdAt').format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}&dateStart=${task.getCreateTime().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}&type=activiti\" ${todoAPI}"].execute();
 def todoresult = slurper.parseText(todo.text);
 println "CCCAR - Endorse. Task created. Todo create result: ${todoresult}";
-todo.waitFor();]]></activiti:string>
+todo.waitFor();
+
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"todoId=${todoresult.id}&taskId=${task.id}\" ${cccarAPI}"].execute();
+def cccarresult = slurper.parseText(cccar.text);
+println "CCCAR - Endorse. Task created. CCCAR update result: ${cccarresult}";
+cccar.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -115,16 +128,17 @@ def cccarAPI = "${cccarServer}/api/record/${task.getVariable('cccarId')}";
 def myInfo = ['bash', '-c', "curl -X GET -k ${orgchartAPI}"].execute();
 def slurper = new groovy.json.JsonSlurper();
 def me = slurper.parseText(myInfo.text);
-println "CCCAR - Issue. Task completed. My details: ${me}";
+println "CCCAR - Endorse. Task completed. My details: ${me}";
 myInfo.waitFor();
-task.setVariable('ao',me.results[0].supervisor.username);
-task.setVariable('nextHandler',me.results[0].supervisor.username);
+def nextHandler = me.results[0].supervisor.username
+task.setVariable('ao',nextHandler);
+task.setVariable('nextHandler',nextHandler);
 
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
 def tokenresult = slurper.parseText(token.text);
 println "CCCAR - Endorse. Task completed. Token: ${tokenresult.access_token}";
 
-def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"endorsedBy=${completedBy.username}&status=Endorsed\" ${cccarAPI}"].execute();
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${nextHandler}&nextAction=Approve&status=Pending Approval\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Endorse. Task completed. CCCAR update result: ${cccarresult}";
 cccar.waitFor();]]></activiti:string>
@@ -141,6 +155,7 @@ cccar.waitFor();]]></activiti:string>
           <activiti:field name="script">
             <activiti:string><![CDATA[def todoAPI = task.getVariable('todoAPI');
 def cccarServer = task.getVariable('cccarServer');
+def cccarAPI = "${cccarServer}/api/record/${task.getVariable('cccarId')}";
 def url = "${cccarServer}/#/cccar/${task.getVariable('cccarId')}";			
 
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
@@ -148,10 +163,15 @@ def slurper = new groovy.json.JsonSlurper();
 def tokenresult = slurper.parseText(token.text);
 println "CCCAR - Approve. Task created. Token: ${tokenresult.access_token}";
 
-def todo = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"task=${task.name}&ownedBy=${task.getVariable('ao')}&url=${url}&taskId=${task.id}&procInsId=${task.getProcessInstanceId()}&procCreateDate=${task.getVariable('createdAt').format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'')}&dateStart=${task.getCreateTime().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'')}&type=activiti\" ${todoAPI}"].execute();
+def todo = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"task=${task.name}&ownedBy=${task.getVariable('ao')}&url=${url}&taskId=${task.id}&procInsId=${task.getProcessInstanceId()}&procCreateDate=${task.getVariable('createdAt').format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}&dateStart=${task.getCreateTime().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}&type=activiti\" ${todoAPI}"].execute();
 def todoresult = slurper.parseText(todo.text);
 println "CCCAR - Approve. Task created. Todo create result: ${todoresult}";
-todo.waitFor();]]></activiti:string>
+todo.waitFor();
+
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"todoId=${todoresult.id}&taskId=${task.id}\" ${cccarAPI}"].execute();
+def cccarresult = slurper.parseText(cccar.text);
+println "CCCAR - Endorse. Task created. CCCAR update result: ${cccarresult}";
+cccar.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -168,7 +188,7 @@ def slurper = new groovy.json.JsonSlurper();
 def tokenresult = slurper.parseText(token.text);
 println "CCCAR - Approve. Task completed. Token: ${tokenresult.access_token}";
 
-def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"approvedBy=${completedBy.username}&status=Approved\" ${cccarAPI}"].execute();
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=''&status=Completed&nextAction=''\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Approve. Task completed. CCCAR update result: ${cccarresult}";
 cccar.waitFor();]]></activiti:string>
