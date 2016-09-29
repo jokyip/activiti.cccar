@@ -28,11 +28,13 @@
           <activiti:field name="script">
             <activiti:string><![CDATA[def cccarServer = 'http://10.30.224.82:8030';
 def orgchartAPI = "http://10.30.224.82:8021/api/user?email=";
-def todoAPI = 'http://10.30.224.82:8010/api/todo/';
-def cccarAPI = "${cccarServer}/api/record/";
+def todoAPI = 'http://10.30.224.82:8010/api/todo';
+def cccarAPI = "${cccarServer}/api/record";
+def webhookAPI = "${cccarServer}/api/webhook";
 task.setVariable('cccarServer',cccarServer);
 task.setVariable('orgchartAPI',orgchartAPI);
 task.setVariable('todoAPI',todoAPI);
+task.setVariable('webhookAPI',webhookAPI);
 
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
 def slurper = new groovy.json.JsonSlurper();
@@ -51,11 +53,10 @@ def todoresult = slurper.parseText(todo.text);
 println "CCCAR - Issue. Task created. Todo create result: ${todoresult}";
 todo.waitFor();
 
-cccarAPI = "${cccarAPI}${cccarresult.id}"
-cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"todoId=${todoresult.id}&taskId=${task.id}\" ${cccarAPI}"].execute();
-cccarresult = slurper.parseText(cccar.text);
-println "CCCAR - Issue. Task created. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+def webhook = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${cccarresult.id}&event=Issue&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete\" ${webhookAPI}"].execute();
+def webhookresult = slurper.parseText(webhook.text);
+println "CCCAR - Issue. Task created. Webhook create result: ${webhookresult}";
+webhook.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -99,6 +100,7 @@ cccar.waitFor();]]></activiti:string>
 def cccarServer = task.getVariable('cccarServer');
 def cccarAPI = "${cccarServer}/api/record/${task.getVariable('cccarId')}";
 def url = "${cccarServer}/#/cccar/${task.getVariable('cccarId')}";
+def webhookAPI = "${cccarServer}/api/webhook";
 			
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
 def slurper = new groovy.json.JsonSlurper();
@@ -110,10 +112,10 @@ def todoresult = slurper.parseText(todo.text);
 println "CCCAR - Endorse. Task created. Todo create result: ${todoresult}";
 todo.waitFor();
 
-def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"todoId=${todoresult.id}&taskId=${task.id}\" ${cccarAPI}"].execute();
-def cccarresult = slurper.parseText(cccar.text);
-println "CCCAR - Endorse. Task created. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+def webhook = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${task.getVariable('cccarId')}&event=Endorse&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete\" ${webhookAPI}"].execute();
+def webhookresult = slurper.parseText(webhook.text);
+println "CCCAR - Endorse. Task created. Webhook create result: ${webhookresult}";
+webhook.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -156,7 +158,8 @@ cccar.waitFor();]]></activiti:string>
             <activiti:string><![CDATA[def todoAPI = task.getVariable('todoAPI');
 def cccarServer = task.getVariable('cccarServer');
 def cccarAPI = "${cccarServer}/api/record/${task.getVariable('cccarId')}";
-def url = "${cccarServer}/#/cccar/${task.getVariable('cccarId')}";			
+def url = "${cccarServer}/#/cccar/${task.getVariable('cccarId')}";
+def webhookAPI = "${cccarServer}/api/webhook";
 
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
 def slurper = new groovy.json.JsonSlurper();
@@ -168,10 +171,10 @@ def todoresult = slurper.parseText(todo.text);
 println "CCCAR - Approve. Task created. Todo create result: ${todoresult}";
 todo.waitFor();
 
-def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"todoId=${todoresult.id}&taskId=${task.id}\" ${cccarAPI}"].execute();
-def cccarresult = slurper.parseText(cccar.text);
-println "CCCAR - Endorse. Task created. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+def webhook = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${task.getVariable('cccarId')}&event=Approve&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete\" ${webhookAPI}"].execute();
+def webhookresult = slurper.parseText(webhook.text);
+println "CCCAR - Approve. Task created. Webhook create result: ${webhookresult}";
+webhook.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
