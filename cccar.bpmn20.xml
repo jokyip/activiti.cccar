@@ -1,33 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:activiti="http://activiti.org/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" typeLanguage="http://www.w3.org/2001/XMLSchema" expressionLanguage="http://www.w3.org/1999/XPath" targetNamespace="http://activiti.org/test">
   <collaboration id="Collaboration">
-    <participant id="sid-B5E7F080-AED4-4CAF-B3EA-A557D071B6CC" name="CCCAR" processRef="CCCAR"></participant>
+    <participant id="cccar" name="CCCAR" processRef="CCCAR"></participant>
   </collaboration>
   <process id="CCCAR" name="CCCAR" isExecutable="true">
     <laneSet id="laneSet_CCCAR">
-      <lane id="sid-626DDE99-5ABC-43DA-8099-E3635DC3F771" name="Issue">
-        <flowNodeRef>sid-869B30BB-A49C-4392-B00C-ADE8B8C7DB12</flowNodeRef>
-        <flowNodeRef>sid-436CB129-C8F9-4155-8242-5D6A6631B76E</flowNodeRef>
-        <flowNodeRef>sid-DF16D852-F258-4112-84A1-5A78EF608484</flowNodeRef>
-        <flowNodeRef>sid-A7402BDC-F004-4441-B6E7-1E76BBE13674</flowNodeRef>
+      <lane id="cccar_issue" name="Issue">
+        <flowNodeRef>startEvent</flowNodeRef>
+        <flowNodeRef>taskIssue</flowNodeRef>
+        <flowNodeRef>gatewayIssue</flowNodeRef>
+        <flowNodeRef>endEventFromIssue</flowNodeRef>
+        <flowNodeRef>startToIssue</flowNodeRef>
+        <flowNodeRef>issueToEndorse</flowNodeRef>
+        <flowNodeRef>issueToCancel</flowNodeRef>
+        <flowNodeRef>issueToGateway</flowNodeRef>
       </lane>
-      <lane id="sid-51123AEA-092A-4C19-950C-B250218F2DFE" name="Endorse">
-        <flowNodeRef>sid-8323BC35-CB20-4FE3-971B-582727904903</flowNodeRef>
-        <flowNodeRef>sid-2DD372CE-5DC0-470A-8E55-CEF97813866D</flowNodeRef>
+      <lane id="cccar_endorse" name="Endorse">
+        <flowNodeRef>taskEndorse</flowNodeRef>
+        <flowNodeRef>gatewayEndorse</flowNodeRef>
+        <flowNodeRef>endEventFromEndorse</flowNodeRef>
+        <flowNodeRef>endorseToGateway</flowNodeRef>
+        <flowNodeRef>endorseToApprove</flowNodeRef>
+        <flowNodeRef>endorseToCancel</flowNodeRef>
+        <flowNodeRef>endorseToIssue</flowNodeRef>
       </lane>
-      <lane id="sid-0CFABA69-A202-443C-95D2-714B64A5871E" name="Approve">
-        <flowNodeRef>sid-0C5CA3F3-B619-4B7B-919A-379E9F1403ED</flowNodeRef>
-        <flowNodeRef>sid-8EF6BDE6-C9C3-4D36-9AED-D9CCDD23320F</flowNodeRef>
-        <flowNodeRef>sid-7DC40A3D-B145-4FD2-AC5B-E4DB65594A57</flowNodeRef>
+      <lane id="cccar_approve" name="Approve">
+        <flowNodeRef>taskApprove</flowNodeRef>
+        <flowNodeRef>endEvent</flowNodeRef>
+        <flowNodeRef>gatewayApprove</flowNodeRef>
+        <flowNodeRef>endEventFromApprove</flowNodeRef>
+        <flowNodeRef>approveToCancel</flowNodeRef>
+        <flowNodeRef>approveToComplete</flowNodeRef>
+        <flowNodeRef>approveToGateway</flowNodeRef>
+        <flowNodeRef>approveToIssue</flowNodeRef>
       </lane>
     </laneSet>
-    <startEvent id="sid-869B30BB-A49C-4392-B00C-ADE8B8C7DB12"></startEvent>
-    <userTask id="sid-436CB129-C8F9-4155-8242-5D6A6631B76E" name="CCCAR - Issue" activiti:assignee="kermit">
+    <startEvent id="startEvent" name="Start"></startEvent>
+    <userTask id="taskIssue" name="CCCAR - Issue" activiti:assignee="kermit">
       <extensionElements>
         <activiti:taskListener event="create" class="org.activiti.engine.impl.bpmn.listener.ScriptTaskListener">
           <activiti:field name="script">
             <activiti:string><![CDATA[def cccarServer = 'http://10.30.224.82:8030';
-def orgchartAPI = "http://10.30.224.82:8021/api/user?email=";
+def orgchartAPI = "https://mob.myvnc.com/orgchart/api/user?email=";
 def todoAPI = 'http://10.30.224.82:8010/api/todo';
 def cccarAPI = "${cccarServer}/api/record";
 def webhookAPI = "${cccarServer}/api/webhook";
@@ -40,51 +54,30 @@ def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"
 def slurper = new groovy.json.JsonSlurper();
 def tokenresult = slurper.parseText(token.text);
 println "CCCAR - Issue. Task created. Token: ${tokenresult.access_token}";
+def url = "${cccarServer}/#/cccar/edit/${task.getVariable('cccarId')}";
 
-def cccar = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"createdBy=${task.getVariable('createdBy')}&number=${task.getProcessInstanceId()}&nextAction=Issue\" ${cccarAPI}"].execute();
-def cccarresult = slurper.parseText(cccar.text);
-println "CCCAR - Issue. Task created. CCCAR create result: ${cccarresult}";
-cccar.waitFor();
-def url = "${cccarServer}/#/cccar/edit/${cccarresult.id}";
-task.setVariable('cccarId',cccarresult.id);
+if (!task.getVariable('cccarId')){
+	def cccar = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"createdBy=${task.getVariable('createdBy')}&number=${task.getProcessInstanceId()}&nextAction=Issue\" ${cccarAPI}"].execute();
+	def cccarresult = slurper.parseText(cccar.text);
+	println "CCCAR - Issue. Task created. CCCAR create result: ${cccarresult}";
+	cccar.waitFor();
+	url = "${cccarServer}/#/cccar/edit/${cccarresult.id}";
+	task.setVariable('cccarId',cccarresult.id);
+}
 
 def todo = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"task=${task.name}&ownedBy=${task.getVariable('createdBy')}&url=${url}&taskId=${task.id}&procInsId=${task.getProcessInstanceId()}&procCreateDate=${task.getVariable('createdAt').format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}&dateStart=${task.getCreateTime().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}&type=activiti\" ${todoAPI}"].execute();
 def todoresult = slurper.parseText(todo.text);
 println "CCCAR - Issue. Task created. Todo create result: ${todoresult}";
 todo.waitFor();
 
-def webhook = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${cccarresult.id}&event=Issue&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete\" ${webhookAPI}"].execute();
+def webhook = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${task.getVariable('cccarId')}&event=Issue&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete&data=action%3dIssue\" ${webhookAPI}"].execute();
 def webhookresult = slurper.parseText(webhook.text);
 println "CCCAR - Issue. Task created. Webhook create result: ${webhookresult}";
-webhook.waitFor();]]></activiti:string>
-          </activiti:field>
-          <activiti:field name="language">
-            <activiti:string><![CDATA[groovy]]></activiti:string>
-          </activiti:field>
-        </activiti:taskListener>
-        <activiti:taskListener event="complete" class="org.activiti.engine.impl.bpmn.listener.ScriptTaskListener">
-          <activiti:field name="script">
-            <activiti:string><![CDATA[def orgchartAPI = "${task.getVariable('orgchartAPI')}${completedBy.email}";
-def cccarServer = task.getVariable('cccarServer');
-def cccarAPI = "${cccarServer}/api/record/${task.getVariable('cccarId')}";
-
-def myInfo = ['bash', '-c', "curl -X GET -k ${orgchartAPI}"].execute();
-def slurper = new groovy.json.JsonSlurper();
-def me = slurper.parseText(myInfo.text);
-println "CCCAR - Issue. Task completed. My details: ${me}";
-myInfo.waitFor();
-def nextHandler = me.results[0].supervisor.username
-task.setVariable('ro',nextHandler);
-task.setVariable('nextHandler',nextHandler);
-
-def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
-def tokenresult = slurper.parseText(token.text);
-println "CCCAR - Issue. Task completed. Token: ${tokenresult.access_token}";
-
-def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${nextHandler}&nextAction=Endorse&status=Pending Endorsement\" ${cccarAPI}"].execute();
-def cccarresult = slurper.parseText(cccar.text);
-println "CCCAR - Issue. Task completed. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+webhook.waitFor();
+def webhook2 = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${task.getVariable('cccarId')}&event=Withdraw&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete&data=action%3dWithdraw\" ${webhookAPI}"].execute();
+def webhookresult2 = slurper.parseText(webhook2.text);
+println "CCCAR - Issue. Task created. Webhook create result: ${webhookresult2}";
+webhook2.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -92,7 +85,11 @@ cccar.waitFor();]]></activiti:string>
         </activiti:taskListener>
       </extensionElements>
     </userTask>
-    <userTask id="sid-8323BC35-CB20-4FE3-971B-582727904903" name="CCCAR - Endorse" activiti:assignee="kermit">
+    <exclusiveGateway id="gatewayIssue" name="IssueGateway"></exclusiveGateway>
+    <endEvent id="endEventFromIssue" name="Cancel">
+      <terminateEventDefinition></terminateEventDefinition>
+    </endEvent>
+    <userTask id="taskEndorse" name="CCCAR - Endorse" activiti:assignee="kermit">
       <extensionElements>
         <activiti:taskListener event="create" class="org.activiti.engine.impl.bpmn.listener.ScriptTaskListener">
           <activiti:field name="script">
@@ -112,38 +109,18 @@ def todoresult = slurper.parseText(todo.text);
 println "CCCAR - Endorse. Task created. Todo create result: ${todoresult}";
 todo.waitFor();
 
-def webhook = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${task.getVariable('cccarId')}&event=Endorse&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete\" ${webhookAPI}"].execute();
+def webhook = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${task.getVariable('cccarId')}&event=Endorse&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete&data=action%3dEndorse\" ${webhookAPI}"].execute();
 def webhookresult = slurper.parseText(webhook.text);
 println "CCCAR - Endorse. Task created. Webhook create result: ${webhookresult}";
-webhook.waitFor();]]></activiti:string>
-          </activiti:field>
-          <activiti:field name="language">
-            <activiti:string><![CDATA[groovy]]></activiti:string>
-          </activiti:field>
-        </activiti:taskListener>
-        <activiti:taskListener event="complete" class="org.activiti.engine.impl.bpmn.listener.ScriptTaskListener">
-          <activiti:field name="script">
-            <activiti:string><![CDATA[def orgchartAPI = "${task.getVariable('orgchartAPI')}${completedBy.email}";
-def cccarServer = task.getVariable('cccarServer');
-def cccarAPI = "${cccarServer}/api/record/${task.getVariable('cccarId')}";			
-
-def myInfo = ['bash', '-c', "curl -X GET -k ${orgchartAPI}"].execute();
-def slurper = new groovy.json.JsonSlurper();
-def me = slurper.parseText(myInfo.text);
-println "CCCAR - Endorse. Task completed. My details: ${me}";
-myInfo.waitFor();
-def nextHandler = me.results[0].supervisor.username
-task.setVariable('ao',nextHandler);
-task.setVariable('nextHandler',nextHandler);
-
-def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
-def tokenresult = slurper.parseText(token.text);
-println "CCCAR - Endorse. Task completed. Token: ${tokenresult.access_token}";
-
-def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${nextHandler}&nextAction=Approve&status=Pending Approval\" ${cccarAPI}"].execute();
-def cccarresult = slurper.parseText(cccar.text);
-println "CCCAR - Endorse. Task completed. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+webhook.waitFor();
+def webhook2 = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${task.getVariable('cccarId')}&event=Withdraw&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete&data=action%3dWithdraw\" ${webhookAPI}"].execute();
+def webhookresult2 = slurper.parseText(webhook2.text);
+println "CCCAR - Endorse. Task created. Webhook create result: ${webhookresult2}";
+webhook2.waitFor();
+def webhook3 = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${task.getVariable('cccarId')}&event=Reject&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete&data=action%3dReject\" ${webhookAPI}"].execute();
+def webhookresult3 = slurper.parseText(webhook3.text);
+println "CCCAR - Endorse. Task created. Webhook create result: ${webhookresult3}";
+webhook3.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -151,7 +128,11 @@ cccar.waitFor();]]></activiti:string>
         </activiti:taskListener>
       </extensionElements>
     </userTask>
-    <userTask id="sid-0C5CA3F3-B619-4B7B-919A-379E9F1403ED" name="CCCAR - Approve" activiti:assignee="kermit">
+    <exclusiveGateway id="gatewayEndorse" name="EndorseGateway"></exclusiveGateway>
+    <endEvent id="endEventFromEndorse" name="Cancel">
+      <terminateEventDefinition></terminateEventDefinition>
+    </endEvent>
+    <userTask id="taskApprove" name="CCCAR - Approve" activiti:assignee="kermit">
       <extensionElements>
         <activiti:taskListener event="create" class="org.activiti.engine.impl.bpmn.listener.ScriptTaskListener">
           <activiti:field name="script">
@@ -171,30 +152,18 @@ def todoresult = slurper.parseText(todo.text);
 println "CCCAR - Approve. Task created. Todo create result: ${todoresult}";
 todo.waitFor();
 
-def webhook = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${task.getVariable('cccarId')}&event=Approve&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete\" ${webhookAPI}"].execute();
+def webhook = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${task.getVariable('cccarId')}&event=Approve&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete&data=action%3dApprove\" ${webhookAPI}"].execute();
 def webhookresult = slurper.parseText(webhook.text);
 println "CCCAR - Approve. Task created. Webhook create result: ${webhookresult}";
-webhook.waitFor();]]></activiti:string>
-          </activiti:field>
-          <activiti:field name="language">
-            <activiti:string><![CDATA[groovy]]></activiti:string>
-          </activiti:field>
-        </activiti:taskListener>
-        <activiti:taskListener event="complete" class="org.activiti.engine.impl.bpmn.listener.ScriptTaskListener">
-          <activiti:field name="script">
-            <activiti:string><![CDATA[task.setVariable('nextHandler','');
-def cccarServer = task.getVariable('cccarServer');
-def cccarAPI = "${cccarServer}/api/record/${task.getVariable('cccarId')}";
-			
-def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
-def slurper = new groovy.json.JsonSlurper();
-def tokenresult = slurper.parseText(token.text);
-println "CCCAR - Approve. Task completed. Token: ${tokenresult.access_token}";
-
-def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=''&status=Completed&nextAction=''\" ${cccarAPI}"].execute();
-def cccarresult = slurper.parseText(cccar.text);
-println "CCCAR - Approve. Task completed. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+webhook.waitFor();
+def webhook2 = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${task.getVariable('cccarId')}&event=Withdraw&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete&data=action%3dWithdraw\" ${webhookAPI}"].execute();
+def webhookresult2 = slurper.parseText(webhook2.text);
+println "CCCAR - Approve. Task created. Webhook create result: ${webhookresult2}";
+webhook2.waitFor();
+def webhook3 = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${task.getVariable('cccarId')}&event=Reject&method=put&callbackUrl=${todoAPI}/${todoresult.id}/complete&data=action%3dReject\" ${webhookAPI}"].execute();
+def webhookresult3 = slurper.parseText(webhook3.text);
+println "CCCAR - Approve. Task created. Webhook create result: ${webhookresult3}";
+webhook3.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -202,56 +171,332 @@ cccar.waitFor();]]></activiti:string>
         </activiti:taskListener>
       </extensionElements>
     </userTask>
-    <endEvent id="sid-8EF6BDE6-C9C3-4D36-9AED-D9CCDD23320F"></endEvent>
-    <sequenceFlow id="sid-DF16D852-F258-4112-84A1-5A78EF608484" sourceRef="sid-869B30BB-A49C-4392-B00C-ADE8B8C7DB12" targetRef="sid-436CB129-C8F9-4155-8242-5D6A6631B76E"></sequenceFlow>
-    <sequenceFlow id="sid-A7402BDC-F004-4441-B6E7-1E76BBE13674" sourceRef="sid-436CB129-C8F9-4155-8242-5D6A6631B76E" targetRef="sid-8323BC35-CB20-4FE3-971B-582727904903"></sequenceFlow>
-    <sequenceFlow id="sid-2DD372CE-5DC0-470A-8E55-CEF97813866D" sourceRef="sid-8323BC35-CB20-4FE3-971B-582727904903" targetRef="sid-0C5CA3F3-B619-4B7B-919A-379E9F1403ED"></sequenceFlow>
-    <sequenceFlow id="sid-7DC40A3D-B145-4FD2-AC5B-E4DB65594A57" sourceRef="sid-0C5CA3F3-B619-4B7B-919A-379E9F1403ED" targetRef="sid-8EF6BDE6-C9C3-4D36-9AED-D9CCDD23320F"></sequenceFlow>
+    <endEvent id="endEvent" name="Complete"></endEvent>
+    <exclusiveGateway id="gatewayApprove" name="ApproveGateway"></exclusiveGateway>
+    <endEvent id="endEventFromApprove" name="Cancel">
+      <terminateEventDefinition></terminateEventDefinition>
+    </endEvent>
+    <sequenceFlow id="startToIssue" sourceRef="startEvent" targetRef="taskIssue"></sequenceFlow>
+    <sequenceFlow id="endorseToGateway" sourceRef="taskEndorse" targetRef="gatewayEndorse"></sequenceFlow>
+    <sequenceFlow id="approveToCancel" name="Withdraw" sourceRef="gatewayApprove" targetRef="endEventFromApprove">
+	  <extensionElements>
+        <activiti:executionListener event="start" class="org.activiti.engine.impl.bpmn.listener.ScriptExecutionListener">
+          <activiti:field name="script">
+            <activiti:string><![CDATA[execution.setVariable('nextHandler','');
+def cccarServer = execution.getVariable('cccarServer');
+def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+			
+def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
+def slurper = new groovy.json.JsonSlurper();
+def tokenresult = slurper.parseText(token.text);
+println "CCCAR - Withdrawn. Execution completed. Token: ${tokenresult.access_token}";
+
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=''&status=Withdrawn&nextAction=''\" ${cccarAPI}"].execute();
+def cccarresult = slurper.parseText(cccar.text);
+println "CCCAR - Withdrawn. Execution completed. CCCAR update result: ${cccarresult}";
+cccar.waitFor();]]></activiti:string>
+          </activiti:field>
+          <activiti:field name="language">
+            <activiti:string><![CDATA[groovy]]></activiti:string>
+          </activiti:field>
+        </activiti:executionListener>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${action.equals('Withdraw')}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="approveToComplete" name="Approve" sourceRef="gatewayApprove" targetRef="endEvent">
+      <extensionElements>
+        <activiti:executionListener event="start" class="org.activiti.engine.impl.bpmn.listener.ScriptExecutionListener">
+          <activiti:field name="script">
+            <activiti:string><![CDATA[execution.setVariable('nextHandler','');
+def cccarServer = execution.getVariable('cccarServer');
+def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+			
+def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
+def slurper = new groovy.json.JsonSlurper();
+def tokenresult = slurper.parseText(token.text);
+println "CCCAR - Approve. Execution completed. Token: ${tokenresult.access_token}";
+
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=''&status=Approved&nextAction=''\" ${cccarAPI}"].execute();
+def cccarresult = slurper.parseText(cccar.text);
+println "CCCAR - Approve. Execution completed. CCCAR update result: ${cccarresult}";
+cccar.waitFor();]]></activiti:string>
+          </activiti:field>
+          <activiti:field name="language">
+            <activiti:string><![CDATA[groovy]]></activiti:string>
+          </activiti:field>
+        </activiti:executionListener>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${action.equals('Approve')}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="approveToGateway" sourceRef="taskApprove" targetRef="gatewayApprove"></sequenceFlow>
+    <sequenceFlow id="endorseToApprove" name="Endorse" sourceRef="gatewayEndorse" targetRef="taskApprove">
+      <extensionElements>
+        <activiti:executionListener event="start" class="org.activiti.engine.impl.bpmn.listener.ScriptExecutionListener">
+          <activiti:field name="script">
+            <activiti:string><![CDATA[def orgchartAPI = "${execution.getVariable('orgchartAPI')}${completedBy.email}";
+def cccarServer = execution.getVariable('cccarServer');
+def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";			
+
+def myInfo = ['bash', '-c', "curl -X GET -k ${orgchartAPI}"].execute();
+def slurper = new groovy.json.JsonSlurper();
+def me = slurper.parseText(myInfo.text);
+println "CCCAR - Endorse. Execution completed. My details: ${me}";
+myInfo.waitFor();
+def nextHandler = me[0].supervisor.username
+execution.setVariable('ao',nextHandler);
+execution.setVariable('nextHandler',nextHandler);
+
+def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
+def tokenresult = slurper.parseText(token.text);
+println "CCCAR - Endorse. Execution completed. Token: ${tokenresult.access_token}";
+
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${nextHandler}&nextAction=Approve&status=Pending Approval\" ${cccarAPI}"].execute();
+def cccarresult = slurper.parseText(cccar.text);
+println "CCCAR - Endorse. Execution completed. CCCAR update result: ${cccarresult}";
+cccar.waitFor();]]></activiti:string>
+          </activiti:field>
+          <activiti:field name="language">
+            <activiti:string><![CDATA[groovy]]></activiti:string>
+          </activiti:field>
+        </activiti:executionListener>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${action.equals('Endorse')}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="endorseToCancel" name="Withdraw" sourceRef="gatewayEndorse" targetRef="endEventFromEndorse">
+	  <extensionElements>
+        <activiti:executionListener event="start" class="org.activiti.engine.impl.bpmn.listener.ScriptExecutionListener">
+          <activiti:field name="script">
+            <activiti:string><![CDATA[execution.setVariable('nextHandler','');
+def cccarServer = execution.getVariable('cccarServer');
+def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+			
+def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
+def slurper = new groovy.json.JsonSlurper();
+def tokenresult = slurper.parseText(token.text);
+println "CCCAR - Withdrawn. Execution completed. Token: ${tokenresult.access_token}";
+
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=''&status=Withdrawn&nextAction=''\" ${cccarAPI}"].execute();
+def cccarresult = slurper.parseText(cccar.text);
+println "CCCAR - Withdrawn. Execution completed. CCCAR update result: ${cccarresult}";
+cccar.waitFor();]]></activiti:string>
+          </activiti:field>
+          <activiti:field name="language">
+            <activiti:string><![CDATA[groovy]]></activiti:string>
+          </activiti:field>
+        </activiti:executionListener>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${action.equals('Withdraw')}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="endorseToIssue" name="Reject" sourceRef="gatewayEndorse" targetRef="taskIssue">
+	  <extensionElements>
+        <activiti:executionListener event="start" class="org.activiti.engine.impl.bpmn.listener.ScriptExecutionListener">
+          <activiti:field name="script">
+            <activiti:string><![CDATA[execution.setVariable('nextHandler','');
+def cccarServer = execution.getVariable('cccarServer');
+def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+			
+def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
+def slurper = new groovy.json.JsonSlurper();
+def tokenresult = slurper.parseText(token.text);
+println "CCCAR - Rejected. Execution completed. Token: ${tokenresult.access_token}";
+
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${execution.getVariable('createdBy')}&status=Draft&nextAction=Issue\" ${cccarAPI}"].execute();
+def cccarresult = slurper.parseText(cccar.text);
+println "CCCAR - Rejected. Execution completed. CCCAR update result: ${cccarresult}";
+cccar.waitFor();]]></activiti:string>
+          </activiti:field>
+          <activiti:field name="language">
+            <activiti:string><![CDATA[groovy]]></activiti:string>
+          </activiti:field>
+        </activiti:executionListener>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${action.equals('Reject')}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="issueToEndorse" name="Issue" sourceRef="gatewayIssue" targetRef="taskEndorse">
+      <extensionElements>
+        <activiti:executionListener event="start" class="org.activiti.engine.impl.bpmn.listener.ScriptExecutionListener">
+          <activiti:field name="script">
+            <activiti:string><![CDATA[def orgchartAPI = "${execution.getVariable('orgchartAPI')}${completedBy.email}";
+def cccarServer = execution.getVariable('cccarServer');
+def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+
+def myInfo = ['bash', '-c', "curl -X GET -k ${orgchartAPI}"].execute();
+def slurper = new groovy.json.JsonSlurper();
+def me = slurper.parseText(myInfo.text);
+println "CCCAR - Issue. Execution completed. My details: ${me}";
+myInfo.waitFor();
+def nextHandler = me[0].supervisor.username
+execution.setVariable('ro',nextHandler);
+execution.setVariable('nextHandler',nextHandler);
+
+def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
+def tokenresult = slurper.parseText(token.text);
+println "CCCAR - Issue. Execution completed. Token: ${tokenresult.access_token}";
+
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${nextHandler}&nextAction=Endorse&status=Pending Endorsement\" ${cccarAPI}"].execute();
+def cccarresult = slurper.parseText(cccar.text);
+println "CCCAR - Issue. Execution completed. CCCAR update result: ${cccarresult}";
+cccar.waitFor();]]></activiti:string>
+          </activiti:field>
+          <activiti:field name="language">
+            <activiti:string><![CDATA[groovy]]></activiti:string>
+          </activiti:field>
+        </activiti:executionListener>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${action.equals('Issue')}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="issueToCancel" name="Withdraw" sourceRef="gatewayIssue" targetRef="endEventFromIssue">
+	  <extensionElements>
+        <activiti:executionListener event="start" class="org.activiti.engine.impl.bpmn.listener.ScriptExecutionListener">
+          <activiti:field name="script">
+            <activiti:string><![CDATA[execution.setVariable('nextHandler','');
+def cccarServer = execution.getVariable('cccarServer');
+def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+			
+def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
+def slurper = new groovy.json.JsonSlurper();
+def tokenresult = slurper.parseText(token.text);
+println "CCCAR - Withdrawn. Execution completed. Token: ${tokenresult.access_token}";
+
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=''&status=Withdrawn&nextAction=''\" ${cccarAPI}"].execute();
+def cccarresult = slurper.parseText(cccar.text);
+println "CCCAR - Withdrawn. Execution completed. CCCAR update result: ${cccarresult}";
+cccar.waitFor();]]></activiti:string>
+          </activiti:field>
+          <activiti:field name="language">
+            <activiti:string><![CDATA[groovy]]></activiti:string>
+          </activiti:field>
+        </activiti:executionListener>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${action.equals('Withdraw')}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="issueToGateway" sourceRef="taskIssue" targetRef="gatewayIssue"></sequenceFlow>
+    <sequenceFlow id="approveToIssue" name="Reject" sourceRef="gatewayApprove" targetRef="taskIssue">
+	  <extensionElements>
+        <activiti:executionListener event="start" class="org.activiti.engine.impl.bpmn.listener.ScriptExecutionListener">
+          <activiti:field name="script">
+            <activiti:string><![CDATA[execution.setVariable('nextHandler','');
+def cccarServer = execution.getVariable('cccarServer');
+def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+			
+def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
+def slurper = new groovy.json.JsonSlurper();
+def tokenresult = slurper.parseText(token.text);
+println "CCCAR - Rejected. Execution completed. Token: ${tokenresult.access_token}";
+
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${execution.getVariable('createdBy')}&status=Draft&nextAction=Issue\" ${cccarAPI}"].execute();
+def cccarresult = slurper.parseText(cccar.text);
+println "CCCAR - Rejected. Execution completed. CCCAR update result: ${cccarresult}";
+cccar.waitFor();]]></activiti:string>
+          </activiti:field>
+          <activiti:field name="language">
+            <activiti:string><![CDATA[groovy]]></activiti:string>
+          </activiti:field>
+        </activiti:executionListener>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${action.equals('Reject')}]]></conditionExpression>
+    </sequenceFlow>
   </process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_Collaboration">
     <bpmndi:BPMNPlane bpmnElement="Collaboration" id="BPMNPlane_Collaboration">
-      <bpmndi:BPMNShape bpmnElement="sid-B5E7F080-AED4-4CAF-B3EA-A557D071B6CC" id="BPMNShape_sid-B5E7F080-AED4-4CAF-B3EA-A557D071B6CC">
-        <omgdc:Bounds height="750.0" width="600.0" x="48.0" y="77.0"></omgdc:Bounds>
+      <bpmndi:BPMNShape bpmnElement="cccar" id="BPMNShape_cccar">
+        <omgdc:Bounds height="829.0" width="801.0" x="50.0" y="25.0"></omgdc:Bounds>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape bpmnElement="sid-626DDE99-5ABC-43DA-8099-E3635DC3F771" id="BPMNShape_sid-626DDE99-5ABC-43DA-8099-E3635DC3F771">
-        <omgdc:Bounds height="250.0" width="570.0" x="78.0" y="77.0"></omgdc:Bounds>
+      <bpmndi:BPMNShape bpmnElement="cccar_issue" id="BPMNShape_cccar_issue">
+        <omgdc:Bounds height="297.0" width="771.0" x="80.0" y="25.0"></omgdc:Bounds>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape bpmnElement="sid-869B30BB-A49C-4392-B00C-ADE8B8C7DB12" id="BPMNShape_sid-869B30BB-A49C-4392-B00C-ADE8B8C7DB12">
-        <omgdc:Bounds height="30.0" width="30.0" x="205.0" y="187.0"></omgdc:Bounds>
+      <bpmndi:BPMNShape bpmnElement="startEvent" id="BPMNShape_startEvent">
+        <omgdc:Bounds height="30.0" width="30.0" x="137.0" y="45.0"></omgdc:Bounds>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape bpmnElement="sid-436CB129-C8F9-4155-8242-5D6A6631B76E" id="BPMNShape_sid-436CB129-C8F9-4155-8242-5D6A6631B76E">
-        <omgdc:Bounds height="80.0" width="100.0" x="360.0" y="162.0"></omgdc:Bounds>
+      <bpmndi:BPMNShape bpmnElement="taskIssue" id="BPMNShape_taskIssue">
+        <omgdc:Bounds height="80.0" width="100.0" x="356.0" y="105.0"></omgdc:Bounds>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape bpmnElement="sid-51123AEA-092A-4C19-950C-B250218F2DFE" id="BPMNShape_sid-51123AEA-092A-4C19-950C-B250218F2DFE">
-        <omgdc:Bounds height="250.0" width="570.0" x="78.0" y="327.0"></omgdc:Bounds>
+      <bpmndi:BPMNShape bpmnElement="gatewayIssue" id="BPMNShape_gatewayIssue">
+        <omgdc:Bounds height="40.0" width="40.0" x="384.0" y="225.0"></omgdc:Bounds>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape bpmnElement="sid-8323BC35-CB20-4FE3-971B-582727904903" id="BPMNShape_sid-8323BC35-CB20-4FE3-971B-582727904903">
-        <omgdc:Bounds height="80.0" width="100.0" x="360.0" y="412.0"></omgdc:Bounds>
+      <bpmndi:BPMNShape bpmnElement="endEventFromIssue" id="BPMNShape_endEventFromIssue">
+        <omgdc:Bounds height="28.0" width="28.0" x="585.0" y="231.0"></omgdc:Bounds>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape bpmnElement="sid-0CFABA69-A202-443C-95D2-714B64A5871E" id="BPMNShape_sid-0CFABA69-A202-443C-95D2-714B64A5871E">
-        <omgdc:Bounds height="250.0" width="570.0" x="78.0" y="577.0"></omgdc:Bounds>
+      <bpmndi:BPMNShape bpmnElement="cccar_endorse" id="BPMNShape_cccar_endorse">
+        <omgdc:Bounds height="250.0" width="771.0" x="80.0" y="322.0"></omgdc:Bounds>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape bpmnElement="sid-0C5CA3F3-B619-4B7B-919A-379E9F1403ED" id="BPMNShape_sid-0C5CA3F3-B619-4B7B-919A-379E9F1403ED">
-        <omgdc:Bounds height="80.0" width="100.0" x="360.0" y="662.0"></omgdc:Bounds>
+      <bpmndi:BPMNShape bpmnElement="taskEndorse" id="BPMNShape_taskEndorse">
+        <omgdc:Bounds height="80.0" width="100.0" x="354.0" y="360.0"></omgdc:Bounds>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape bpmnElement="sid-8EF6BDE6-C9C3-4D36-9AED-D9CCDD23320F" id="BPMNShape_sid-8EF6BDE6-C9C3-4D36-9AED-D9CCDD23320F">
-        <omgdc:Bounds height="28.0" width="28.0" x="570.0" y="688.0"></omgdc:Bounds>
+      <bpmndi:BPMNShape bpmnElement="gatewayEndorse" id="BPMNShape_gatewayEndorse">
+        <omgdc:Bounds height="40.0" width="40.0" x="384.0" y="480.0"></omgdc:Bounds>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge bpmnElement="sid-DF16D852-F258-4112-84A1-5A78EF608484" id="BPMNEdge_sid-DF16D852-F258-4112-84A1-5A78EF608484">
-        <omgdi:waypoint x="235.0" y="202.0"></omgdi:waypoint>
-        <omgdi:waypoint x="360.0" y="202.0"></omgdi:waypoint>
+      <bpmndi:BPMNShape bpmnElement="endEventFromEndorse" id="BPMNShape_endEventFromEndorse">
+        <omgdc:Bounds height="28.0" width="28.0" x="585.0" y="486.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="cccar_approve" id="BPMNShape_cccar_approve">
+        <omgdc:Bounds height="282.0" width="771.0" x="80.0" y="572.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="taskApprove" id="BPMNShape_taskApprove">
+        <omgdc:Bounds height="80.0" width="100.0" x="354.0" y="615.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endEvent" id="BPMNShape_endEvent">
+        <omgdc:Bounds height="28.0" width="28.0" x="780.0" y="810.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="gatewayApprove" id="BPMNShape_gatewayApprove">
+        <omgdc:Bounds height="40.0" width="40.0" x="384.0" y="735.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endEventFromApprove" id="BPMNShape_endEventFromApprove">
+        <omgdc:Bounds height="28.0" width="28.0" x="585.0" y="741.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="approveToCancel" id="BPMNEdge_approveToCancel">
+        <omgdi:waypoint x="424.0" y="755.0"></omgdi:waypoint>
+        <omgdi:waypoint x="585.0" y="755.0"></omgdi:waypoint>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge bpmnElement="sid-A7402BDC-F004-4441-B6E7-1E76BBE13674" id="BPMNEdge_sid-A7402BDC-F004-4441-B6E7-1E76BBE13674">
-        <omgdi:waypoint x="410.0" y="242.0"></omgdi:waypoint>
-        <omgdi:waypoint x="410.0" y="412.0"></omgdi:waypoint>
+      <bpmndi:BPMNEdge bpmnElement="approveToComplete" id="BPMNEdge_approveToComplete">
+        <omgdi:waypoint x="404.0" y="775.0"></omgdi:waypoint>
+        <omgdi:waypoint x="404.0" y="824.0"></omgdi:waypoint>
+        <omgdi:waypoint x="780.0" y="824.0"></omgdi:waypoint>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge bpmnElement="sid-2DD372CE-5DC0-470A-8E55-CEF97813866D" id="BPMNEdge_sid-2DD372CE-5DC0-470A-8E55-CEF97813866D">
-        <omgdi:waypoint x="410.0" y="492.0"></omgdi:waypoint>
-        <omgdi:waypoint x="410.0" y="662.0"></omgdi:waypoint>
+      <bpmndi:BPMNEdge bpmnElement="endorseToApprove" id="BPMNEdge_endorseToApprove">
+        <omgdi:waypoint x="404.0" y="520.0"></omgdi:waypoint>
+        <omgdi:waypoint x="404.0" y="615.0"></omgdi:waypoint>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge bpmnElement="sid-7DC40A3D-B145-4FD2-AC5B-E4DB65594A57" id="BPMNEdge_sid-7DC40A3D-B145-4FD2-AC5B-E4DB65594A57">
-        <omgdi:waypoint x="460.0" y="702.0"></omgdi:waypoint>
-        <omgdi:waypoint x="570.0" y="702.0"></omgdi:waypoint>
+      <bpmndi:BPMNEdge bpmnElement="issueToEndorse" id="BPMNEdge_issueToEndorse">
+        <omgdi:waypoint x="404.0" y="265.0"></omgdi:waypoint>
+        <omgdi:waypoint x="404.0" y="360.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="issueToCancel" id="BPMNEdge_issueToCancel">
+        <omgdi:waypoint x="424.0" y="245.0"></omgdi:waypoint>
+        <omgdi:waypoint x="585.0" y="245.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="approveToGateway" id="BPMNEdge_approveToGateway">
+        <omgdi:waypoint x="404.0" y="695.0"></omgdi:waypoint>
+        <omgdi:waypoint x="404.0" y="735.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="approveToIssue" id="BPMNEdge_approveToIssue">
+        <omgdi:waypoint x="384.0" y="755.0"></omgdi:waypoint>
+        <omgdi:waypoint x="248.0" y="755.0"></omgdi:waypoint>
+        <omgdi:waypoint x="248.0" y="145.0"></omgdi:waypoint>
+        <omgdi:waypoint x="356.0" y="145.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="startToIssue" id="BPMNEdge_startToIssue">
+        <omgdi:waypoint x="167.0" y="60.0"></omgdi:waypoint>
+        <omgdi:waypoint x="406.0" y="60.0"></omgdi:waypoint>
+        <omgdi:waypoint x="406.0" y="105.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="endorseToCancel" id="BPMNEdge_endorseToCancel">
+        <omgdi:waypoint x="424.0" y="500.0"></omgdi:waypoint>
+        <omgdi:waypoint x="585.0" y="500.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="issueToGateway" id="BPMNEdge_issueToGateway">
+        <omgdi:waypoint x="405.2" y="185.0"></omgdi:waypoint>
+        <omgdi:waypoint x="404.3921568627451" y="225.3921568627451"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="endorseToIssue" id="BPMNEdge_endorseToIssue">
+        <omgdi:waypoint x="384.0" y="500.0"></omgdi:waypoint>
+        <omgdi:waypoint x="278.0" y="500.0"></omgdi:waypoint>
+        <omgdi:waypoint x="278.0" y="145.0"></omgdi:waypoint>
+        <omgdi:waypoint x="356.0" y="145.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="endorseToGateway" id="BPMNEdge_endorseToGateway">
+        <omgdi:waypoint x="404.0" y="440.0"></omgdi:waypoint>
+        <omgdi:waypoint x="404.0" y="480.0"></omgdi:waypoint>
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
