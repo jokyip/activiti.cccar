@@ -291,7 +291,7 @@ cccar.waitFor();]]></activiti:string>
 	  <extensionElements>
         <activiti:executionListener event="start" class="org.activiti.engine.impl.bpmn.listener.ScriptExecutionListener">
           <activiti:field name="script">
-            <activiti:string><![CDATA[execution.setVariable('nextHandler','');
+            <activiti:string><![CDATA[execution.setVariable('nextHandler',execution.getVariable('createdBy'));
 def cccarServer = execution.getVariable('cccarServer');
 def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
 			
@@ -375,7 +375,7 @@ cccar.waitFor();]]></activiti:string>
 	  <extensionElements>
         <activiti:executionListener event="start" class="org.activiti.engine.impl.bpmn.listener.ScriptExecutionListener">
           <activiti:field name="script">
-            <activiti:string><![CDATA[execution.setVariable('nextHandler','');
+            <activiti:string><![CDATA[execution.setVariable('nextHandler',execution.getVariable('createdBy'));
 def cccarServer = execution.getVariable('cccarServer');
 def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
 			
