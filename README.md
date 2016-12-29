@@ -1,1 +1,1 @@
-# activiti.cccar
+BPMN 2.0 definition for CCCAR

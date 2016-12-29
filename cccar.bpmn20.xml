@@ -42,7 +42,7 @@
           <activiti:field name="script">
             <activiti:string><![CDATA[def cccarServer = 'http://10.30.224.82:8030';
 def orgchartAPI = "https://mob.myvnc.com/orgchart/api/user?email=";
-def todoAPI = 'http://10.30.224.82:8010/api/todo';
+def todoAPI = 'http://10.30.224.82:8010/api/todo'
 def cccarAPI = "${cccarServer}/api/record";
 def webhookAPI = "${cccarServer}/api/webhook";
 task.setVariable('cccarServer',cccarServer);
@@ -185,6 +185,7 @@ webhook3.waitFor();]]></activiti:string>
             <activiti:string><![CDATA[execution.setVariable('nextHandler','');
 def cccarServer = execution.getVariable('cccarServer');
 def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+def historyAPI = "${cccarServer}/api/history";
 			
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
 def slurper = new groovy.json.JsonSlurper();
@@ -194,7 +195,12 @@ println "CCCAR - Withdrawn. Execution completed. Token: ${tokenresult.access_tok
 def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=''&status=Withdrawn&nextAction=''\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Withdrawn. Execution completed. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+cccar.waitFor();
+
+def history = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${execution.getVariable('cccarId')}&msg=Withdrawn by ${completedBy.username} on &msgAt=${new Date().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}\" ${historyAPI}"].execute();
+def historyresult = slurper.parseText(history.text);
+println "CCCAR - Endorse. Execution completed. CCCAR history create result: ${historyresult}";
+history.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -210,6 +216,7 @@ cccar.waitFor();]]></activiti:string>
             <activiti:string><![CDATA[execution.setVariable('nextHandler','');
 def cccarServer = execution.getVariable('cccarServer');
 def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+def historyAPI = "${cccarServer}/api/history";
 			
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
 def slurper = new groovy.json.JsonSlurper();
@@ -219,7 +226,12 @@ println "CCCAR - Approve. Execution completed. Token: ${tokenresult.access_token
 def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=''&status=Approved&nextAction=''\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Approve. Execution completed. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+cccar.waitFor();
+
+def history = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${execution.getVariable('cccarId')}&msg=Approved by ${completedBy.username} on &msgAt=${new Date().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}\" ${historyAPI}"].execute();
+def historyresult = slurper.parseText(history.text);
+println "CCCAR - Endorse. Execution completed. CCCAR history create result: ${historyresult}";
+history.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -235,7 +247,8 @@ cccar.waitFor();]]></activiti:string>
           <activiti:field name="script">
             <activiti:string><![CDATA[def orgchartAPI = "${execution.getVariable('orgchartAPI')}${completedBy.email}";
 def cccarServer = execution.getVariable('cccarServer');
-def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";			
+def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+def historyAPI = "${cccarServer}/api/history";
 
 def myInfo = ['bash', '-c', "curl -X GET -k ${orgchartAPI}"].execute();
 def slurper = new groovy.json.JsonSlurper();
@@ -253,7 +266,12 @@ println "CCCAR - Endorse. Execution completed. Token: ${tokenresult.access_token
 def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${nextHandler}&nextAction=Approve&status=Pending Approval\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Endorse. Execution completed. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+cccar.waitFor();
+
+def history = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${execution.getVariable('cccarId')}&msg=Endorsed by ${completedBy.username} on &msgAt=${new Date().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}\" ${historyAPI}"].execute();
+def historyresult = slurper.parseText(history.text);
+println "CCCAR - Endorse. Execution completed. CCCAR history create result: ${historyresult}";
+history.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -269,6 +287,7 @@ cccar.waitFor();]]></activiti:string>
             <activiti:string><![CDATA[execution.setVariable('nextHandler','');
 def cccarServer = execution.getVariable('cccarServer');
 def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+def historyAPI = "${cccarServer}/api/history";
 			
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
 def slurper = new groovy.json.JsonSlurper();
@@ -278,7 +297,12 @@ println "CCCAR - Withdrawn. Execution completed. Token: ${tokenresult.access_tok
 def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=''&status=Withdrawn&nextAction=''\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Withdrawn. Execution completed. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+cccar.waitFor();
+
+def history = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${execution.getVariable('cccarId')}&msg=Withdrawn by ${completedBy.username} on &msgAt=${new Date().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}\" ${historyAPI}"].execute();
+def historyresult = slurper.parseText(history.text);
+println "CCCAR - Endorse. Execution completed. CCCAR history create result: ${historyresult}";
+history.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -294,6 +318,7 @@ cccar.waitFor();]]></activiti:string>
             <activiti:string><![CDATA[execution.setVariable('nextHandler',execution.getVariable('createdBy'));
 def cccarServer = execution.getVariable('cccarServer');
 def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+def historyAPI = "${cccarServer}/api/history";
 			
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
 def slurper = new groovy.json.JsonSlurper();
@@ -303,7 +328,12 @@ println "CCCAR - Rejected. Execution completed. Token: ${tokenresult.access_toke
 def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${execution.getVariable('createdBy')}&status=Draft&nextAction=Issue\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Rejected. Execution completed. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+cccar.waitFor();
+
+def history = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${execution.getVariable('cccarId')}&msg=Rejected by ${completedBy.username} on &msgAt=${new Date().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}\" ${historyAPI}"].execute();
+def historyresult = slurper.parseText(history.text);
+println "CCCAR - Endorse. Execution completed. CCCAR history create result: ${historyresult}";
+history.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -319,6 +349,7 @@ cccar.waitFor();]]></activiti:string>
             <activiti:string><![CDATA[def orgchartAPI = "${execution.getVariable('orgchartAPI')}${completedBy.email}";
 def cccarServer = execution.getVariable('cccarServer');
 def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+def historyAPI = "${cccarServer}/api/history";
 
 def myInfo = ['bash', '-c', "curl -X GET -k ${orgchartAPI}"].execute();
 def slurper = new groovy.json.JsonSlurper();
@@ -336,7 +367,12 @@ println "CCCAR - Issue. Execution completed. Token: ${tokenresult.access_token}"
 def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${nextHandler}&nextAction=Endorse&status=Pending Endorsement\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Issue. Execution completed. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+cccar.waitFor();
+
+def history = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${execution.getVariable('cccarId')}&msg=Issued by ${completedBy.username} on &msgAt=${new Date().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}\" ${historyAPI}"].execute();
+def historyresult = slurper.parseText(history.text);
+println "CCCAR - Issue. Execution completed. CCCAR history create result: ${historyresult}";
+history.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -349,9 +385,11 @@ cccar.waitFor();]]></activiti:string>
 	  <extensionElements>
         <activiti:executionListener event="start" class="org.activiti.engine.impl.bpmn.listener.ScriptExecutionListener">
           <activiti:field name="script">
-            <activiti:string><![CDATA[execution.setVariable('nextHandler','');
+            <activiti:string><![CDATA[
+execution.setVariable('nextHandler','');
 def cccarServer = execution.getVariable('cccarServer');
 def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+def historyAPI = "${cccarServer}/api/history";
 			
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
 def slurper = new groovy.json.JsonSlurper();
@@ -361,7 +399,12 @@ println "CCCAR - Withdrawn. Execution completed. Token: ${tokenresult.access_tok
 def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=''&status=Withdrawn&nextAction=''\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Withdrawn. Execution completed. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+cccar.waitFor();
+
+def history = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${execution.getVariable('cccarId')}&msg=Withdrawn by ${completedBy.username} on &msgAt=${new Date().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}\" ${historyAPI}"].execute();
+def historyresult = slurper.parseText(history.text);
+println "CCCAR - Endorse. Execution completed. CCCAR history create result: ${historyresult}";
+history.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
@@ -378,6 +421,7 @@ cccar.waitFor();]]></activiti:string>
             <activiti:string><![CDATA[execution.setVariable('nextHandler',execution.getVariable('createdBy'));
 def cccarServer = execution.getVariable('cccarServer');
 def cccarAPI = "${cccarServer}/api/record/${execution.getVariable('cccarId')}";
+def historyAPI = "${cccarServer}/api/history";
 			
 def token = ['bash', '-c', "curl -X POST -k -u \"todomsgUATAuth:pass1234\" -d \"grant_type=password&username=todoadmin&password=pass1234&scope[]=https://mob.myvnc.com/org/users&scope[]=https://mob.myvnc.com/mobile\" https://mob.myvnc.com/org/oauth2/token/"].execute();
 def slurper = new groovy.json.JsonSlurper();
@@ -387,7 +431,12 @@ println "CCCAR - Rejected. Execution completed. Token: ${tokenresult.access_toke
 def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${execution.getVariable('createdBy')}&status=Draft&nextAction=Issue\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Rejected. Execution completed. CCCAR update result: ${cccarresult}";
-cccar.waitFor();]]></activiti:string>
+cccar.waitFor();
+
+def history = ['bash', '-c', "curl -X POST -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"cccarId=${execution.getVariable('cccarId')}&msg=Rejected by ${completedBy.username} on &msgAt=${new Date().format('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', TimeZone.getTimeZone('UTC'))}\" ${historyAPI}"].execute();
+def historyresult = slurper.parseText(history.text);
+println "CCCAR - Endorse. Execution completed. CCCAR history create result: ${historyresult}";
+history.waitFor();]]></activiti:string>
           </activiti:field>
           <activiti:field name="language">
             <activiti:string><![CDATA[groovy]]></activiti:string>
