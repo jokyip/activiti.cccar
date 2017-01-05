@@ -325,7 +325,7 @@ def slurper = new groovy.json.JsonSlurper();
 def tokenresult = slurper.parseText(token.text);
 println "CCCAR - Rejected. Execution completed. Token: ${tokenresult.access_token}";
 
-def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${execution.getVariable('createdBy')}&status=Draft&nextAction=Issue\" ${cccarAPI}"].execute();
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${execution.getVariable('createdBy')}&status=Rejected&nextAction=Issue\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Rejected. Execution completed. CCCAR update result: ${cccarresult}";
 cccar.waitFor();
@@ -428,7 +428,7 @@ def slurper = new groovy.json.JsonSlurper();
 def tokenresult = slurper.parseText(token.text);
 println "CCCAR - Rejected. Execution completed. Token: ${tokenresult.access_token}";
 
-def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${execution.getVariable('createdBy')}&status=Draft&nextAction=Issue\" ${cccarAPI}"].execute();
+def cccar = ['bash', '-c', "curl -X PUT -k -H \"Authorization:Bearer ${tokenresult.access_token}\" -d \"nextHandler=${execution.getVariable('createdBy')}&status=Rejected&nextAction=Issue\" ${cccarAPI}"].execute();
 def cccarresult = slurper.parseText(cccar.text);
 println "CCCAR - Rejected. Execution completed. CCCAR update result: ${cccarresult}";
 cccar.waitFor();
